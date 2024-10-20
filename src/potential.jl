@@ -26,10 +26,12 @@ end
 
 struct SquareWell <: AbstractPotential
     v::Real
-    a::Real
+    x0::Real
+    l::Real
 end
 
 function potential(v::SquareWell, x::Real)
-    a = v.a
-    return x < -a/2 || x > a/2 ? v.v : 0.0
+    x0 = v.x0
+    l = v.l
+    return abs(x - x0) > l/2 ? v.v : 0.0
 end

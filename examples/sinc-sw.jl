@@ -2,13 +2,14 @@ using DiscreteVariableRepresentation, Printf
 
 ng = 200
 x0 = 0.0
-l = 2.0
+l = 4.0
 dx = l / ng
 xg = x0 - l / 2 + dx / 2 .+ dx * [i for i in 0:ng-1]
-v = SquareWell(0.0, l)
+v = SquareWell(5.0, x0, 2.0)
 b = SincBasis()
 
 dvr_obj = DVR(xg, 1.0, b, v)
+
 e, u = solve(dvr_obj, 5)
 
 @printf("e = [")
