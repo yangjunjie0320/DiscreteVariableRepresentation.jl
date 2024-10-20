@@ -3,14 +3,13 @@ module DiscreteVariableRepresentation
     using LinearAlgebra
     using Plots, Printf
 
-    export SincBasis, DVR
+    export Sinc, DVR
     export solve, plot
     export SimpleHarmonicOscillator
-    export MorseOscillator
-    export SquareWell
-    export potential
+    export Morse, SquareWell
+    export DoubleWell
 
-    include("potential.jl")
     include("dvr.jl")
-    include("sinc.jl")
+    include("potential.jl")
+    include("basis.jl")
 end

@@ -1,58 +1,56 @@
 abstract type AbstractBasis end
 abstract type AbstractPotential end
 
-struct DiscreteVariableRepresentationProblem{T<:Real, B<:AbstractBasis}
-    xg::Vector{T}
-    vg::Vector{T}
-    dx::T
+struct DiscreteVariableRepresentationProblem{T<:Real, B<:AbstractBasis, V<:AbstractPotential}
+    v::V # potential
+    b::B # basis
     mu::T
 
-    function DiscreteVariableRepresentationProblem(xg::Vector{T}, mu::T, b::B, v::AbstractPotential) where {T, B}
-        ng = length(xg)
-        @assert ng > 1
-        @assert size(xg) == (ng,)
-        
-        dx = xg[2] - xg[1]
-        @assert dx > 0.0
-
-        for i in 2:ng
-            xi = xg[i]; xj = xg[i-1]
-            @assert isapprox(xi - xj, dx)
-        end
-
-        vg = [potential(v, x) for x in xg]
-        @assert size(vg) == (ng,)
-        
-        new{T, B}(xg, vg, dx, mu)
+    function DiscreteVariableRepresentationProblem(v::V, b::B, mu::T=1.0) where {T, B, V}
+        @assert mu > 0.0
+        new{T, B, V}(v, b, mu)
     end
+end
+
+function DiscreteVariableRepresentationProblem(xg::Vector{T}; v::Union{V, Nothing}=nothing, b::Union{B, Nothing}=nothing, mu::T=1.0) where {T, V<:AbstractPotential, B<:AbstractBasis}
+    b = b === nothing ? Sinc(xg) : b
+    v = v === nothing ? SimpleHarmonicOscillator() : v
+    return DiscreteVariableRepresentationProblem(v, b, mu)
 end
 
 const DVR = DiscreteVariableRepresentationProblem
 
-function hamiltonian(dvr_obj::DVR)
-    hm = diagm(dvr_obj.vg)
-    hm += kinetic(dvr_obj)
+function hamiltonian(dvr_obj::DVR{T, B, V}) where {T, B, V}
+    vm = poten(dvr_obj)
+    km = kinet(dvr_obj)
+    hm = vm + km
 
-    ng = length(dvr_obj.xg)
+    ng = dvr_obj.b.ng
     @assert size(hm) == (ng, ng)
-    return hm
+
+    @assert ishermitian(hm)
+    return Hermitian(hm::Matrix{T})
 end
 
 function solve(dvr_obj::DVR, nroots::Int=5)
+    nroots = min(nroots, dvr_obj.b.ng)::Int
+    @assert nroots > 0
+
     hm = hamiltonian(dvr_obj)
-    res = eigen(Hermitian(hm), 1:nroots)
+    res = eigen(hm, 1:nroots)
     e = res.values
     u = res.vectors
     return e, u
 end
 
-function plot(dvr_obj::DVR{T, B}, e::Vector{T}, u::Matrix{T}; nroots::Int=5, 
+function plot(
+    dvr_obj::DVR{T, V, B}, e::Vector{T}, u::Matrix{T}; nroots::Int=5, 
     xmin::Union{T, Nothing}=nothing, xmax::Union{T, Nothing}=nothing,
     ymin::Union{T, Nothing}=nothing, ymax::Union{T, Nothing}=nothing
-    ) where {T, B}
+    ) where {T, V, B}
 
-    xg = dvr_obj.xg
-    vg = dvr_obj.vg
+    xg = dvr_obj.b.xg
+    vg = diag(poten(dvr_obj))
 
     nroots = min(nroots, size(u, 2))
     ee = e[1:nroots]
@@ -70,6 +68,6 @@ function plot(dvr_obj::DVR{T, B}, e::Vector{T}, u::Matrix{T}; nroots::Int=5,
         Plots.plot!(p, xg, u0 .+ ee[i])
     end
 
-    Plots.plot!(p, xlims=(xmin, xmax), ylims=(ymin, ymax))    
+    Plots.plot!(p, xlims=(xmin, xmax), ylims=(ymin, ymax), legend=false)
     return p
 end
